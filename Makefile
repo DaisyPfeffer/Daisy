@@ -13,7 +13,10 @@ windows:
 	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o installer/godm-cli.exe ./cmd/godm
 
 # needs NSIS (makensis); produces installer/GoDM-Setup-$(VERSION).exe
-installer: windows
+installer:
+	$(MAKE) idm-icon
+	$(MAKE) resources
+	$(MAKE) windows
 	cd installer && makensis godm.nsi
 
 # Extract the real icon from a local Internet Download Manager installation.
