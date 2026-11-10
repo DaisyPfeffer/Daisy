@@ -91,6 +91,23 @@ go build -o godm-cli.exe .\cmd\godm
 window toolkit needs; recreate it with `make resources` if you change them. For 32-bit or
 ARM Windows, regenerate it with the matching `-arch` before building.
 
+### Use the original IDM application icon
+
+On Windows, with Internet Download Manager installed, extract its actual application icon into GoDM's runtime and Windows build assets:
+
+```bash
+make idm-icon
+make resources
+make windows
+```
+
+The extraction script reads the icon from your local `IDMan.exe` and writes:
+
+- `internal/gui/assets/app.png` — GoDM window, dialogs and tray icon.
+- `installer/godm.ico` — the icon embedded into `GoDM.exe` by the Windows resource step.
+
+For a non-standard IDM installation folder, run `make idm-icon IDM_EXE="C:\\Path\\To\\IDMan.exe"`. The script only reads the installed executable; it does not modify it. Run `make resources` after extraction so the Windows executable receives the new icon.
+
 ## Command line (godm-cli)
 
 The desktop app and `godm-cli serve` share the same downloads and settings, so run only one of them at a time.

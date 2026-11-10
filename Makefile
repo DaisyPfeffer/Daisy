@@ -1,7 +1,7 @@
 VERSION := 2.0.0
 LDFLAGS := -s -w
 
-.PHONY: build gui test windows installer release clean
+.PHONY: build gui test windows installer release clean resources idm-icon
 
 # command line program for the current system
 build:
@@ -16,7 +16,13 @@ windows:
 installer: windows
 	cd installer && makensis godm.nsi
 
-# regenerate the Windows icon + manifest resource for GoDM.exe
+# Extract the real icon from a local Internet Download Manager installation.
+# Set IDM_EXE=... when IDMan.exe is installed in a non-standard folder.
+IDM_EXE ?=
+idm-icon:
+	powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/extract-idm-icon.ps1 -IdmExePath "$(IDM_EXE)"
+
+# regenerate the Windows icon + manifest resource for GoDM.exe (run idm-icon first)
 resources:
 	cd cmd/godm-gui && go run github.com/akavel/rsrc@v0.10.2 -manifest godm.manifest -ico ../../installer/godm.ico -arch amd64 -o rsrc_windows_amd64.syso
 
