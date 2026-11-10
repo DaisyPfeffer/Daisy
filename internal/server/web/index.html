@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GoDM — Download Manager</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Crect width=%2216%22 height=%2216%22 rx=%223%22 fill=%22%233ddc97%22/%3E%3Cpath d=%22M8 3v7m-3-3 3 3 3-3M4 13h8%22 stroke=%22%2306210f%22 stroke-width=%221.6%22 fill=%22none%22/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #0f1216; --panel: #171b21; --line: #262c35; --text: #e6e9ee; --muted: #8a94a3;
+    --accent: #3ddc97; --accent-ink: #06210f; --warn: #ffb547; --bad: #ff6b6b; --info: #5aa9ff;
+    --radius: 10px; --mono: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { display: flex; align-items: center; gap: 16px; padding: 16px 24px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--bg); z-index: 2; }
+  .logo { font-family: var(--mono); font-weight: 700; letter-spacing: .5px; }
+  .logo b { color: var(--accent); }
+  .stats { color: var(--muted); font-family: var(--mono); font-size: 12px; margin-left: auto; }
+  main { max-width: 1100px; margin: 0 auto; padding: 24px; }
+  button, input, select { font: inherit; color: inherit; }
+  button { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+  button:hover { border-color: var(--muted); }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+  button.danger:hover { border-color: var(--bad); color: var(--bad); }
+  input, select, textarea { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; color: var(--text); width: 100%; font: inherit; }
+  textarea { font-family: var(--mono); font-size: 12px; min-height: 80px; resize: vertical; }
+  .toolbar { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .filters { display: flex; gap: 4px; margin-left: auto; }
+  .filters button.on { border-color: var(--accent); color: var(--accent); }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 10px; }
+  .row { display: flex; align-items: center; gap: 12px; }
+  .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+  .meta { color: var(--muted); font-family: var(--mono); font-size: 12px; margin-top: 6px; display: flex; gap: 16px; flex-wrap: wrap; }
+  .badge { font-family: var(--mono); font-size: 11px; padding: 2px 8px; border-radius: 99px; border: 1px solid currentColor; text-transform: uppercase; }
+  .s-downloading { color: var(--info); } .s-completed { color: var(--accent); } .s-error { color: var(--bad); }
+  .s-paused { color: var(--warn); } .s-queued { color: var(--muted); }
+  .bar { position: relative; height: 8px; background: var(--bg); border-radius: 99px; overflow: hidden; margin-top: 10px; }
+  .bar > i { position: absolute; top: 0; bottom: 0; background: var(--accent); }
+  .bar > i.seg { background: var(--info); opacity: .9; }
+  .err { color: var(--bad); font-size: 12px; margin-top: 6px; word-break: break-word; }
+  .empty { text-align: center; color: var(--muted); padding: 60px 0; }
+  dialog { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 14px; padding: 20px; width: min(560px, 94vw); }
+  dialog::backdrop { background: rgb(0 0 0 / .6); }
+  dialog h2 { margin: 0 0 14px; font-size: 16px; }
+  label { display: block; color: var(--muted); font-size: 12px; margin: 10px 0 4px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+  .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+  details summary { cursor: pointer; color: var(--muted); margin-top: 12px; }
+  .tokenbox { max-width: 420px; margin: 80px auto; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">Go<b>DM</b></div>
+  <div class="stats" id="stats"></div>
+</header>
+<main id="app"></main>
+
+<dialog id="addDlg">
+  <form method="dialog" id="addForm">
+    <h2>Add downloads</h2>
+    <label>URLs (one per line)</label>
+    <textarea name="urls" required placeholder="https://example.com/file.zip"></textarea>
+    <div class="grid">
+      <div><label>File name (single URL only)</label><input name="fileName"></div>
+      <div><label>Connections</label><input name="connections" type="number" min="1" max="32" placeholder="default"></div>
+      <div><label>Save to folder</label><input name="dir" placeholder="default"></div>
+      <div><label>Start at (scheduler)</label><input name="startAt" type="datetime-local"></div>
+    </div>
+    <details>
+      <summary>Advanced</summary>
+      <div class="grid">
+        <div><label>Referer</label><input name="referer"></div>
+        <div><label>Speed limit (KB/s)</label><input name="speedLimit" type="number" min="0"></div>
+        <div><label>Username</label><input name="username" autocomplete="off"></div>
+        <div><label>Password</label><input name="password" type="password" autocomplete="off"></div>
+      </div>
+      <label>Cookie header</label><input name="cookie">
+      <label>Checksum (e.g. sha256:abc…)</label><input name="checksum">
+      <label><input type="checkbox" name="paused" style="width:auto"> Add paused</label>
+    </details>
+    <div class="actions">
+      <button value="cancel" formnovalidate>Cancel</button>
+      <button class="primary" value="ok">Add</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="setDlg">
+  <form method="dialog" id="setForm">
+    <h2>Settings</h2>
+    <label>Download folder</label><input name="downloadDir">
+    <div class="grid">
+      <div><label>Downloads at once</label><input name="maxConcurrent" type="number" min="1" max="32"></div>
+      <div><label>Connections per download</label><input name="connections" type="number" min="1" max="32"></div>
+      <div><label>Global speed limit (KB/s, 0 = off)</label><input name="speedLimit" type="number" min="0"></div>
+    </div>
+    <label><input type="checkbox" name="autoRetry" style="width:auto"> Retry failed downloads automatically</label>
+    <label><input type="checkbox" name="categorize" style="width:auto"> Sort into folders by type (Video, Music, …)</label>
+    <div class="actions">
+      <button value="cancel" formnovalidate>Cancel</button>
+      <button class="primary" value="ok">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+const qs = new URLSearchParams(location.search);
+if (qs.get("token")) { localStorage.setItem("godm-token", qs.get("token")); history.replaceState(null, "", "/"); }
+let token = localStorage.getItem("godm-token") || "";
+let filter = "all";
+let items = [];
+
+async function api(method, path, body) {
+  const r = await fetch(path, { method, headers: { "X-GoDM-Token": token, "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
+  const data = await r.json().catch(() => ({}));
+  if (r.status === 401) { token = ""; localStorage.removeItem("godm-token"); render(); throw new Error("unauthorized"); }
+  if (!r.ok) throw new Error(data.error || r.statusText);
+  return data;
+}
+
+const fmtBytes = n => { if (n < 0 || n == null) return "?"; const u = ["B","KB","MB","GB","TB"]; let i = 0; while (n >= 1024 && i < u.length-1) { n /= 1024; i++; } return n.toFixed(i ? 1 : 0) + " " + u[i]; };
+const fmtTime = s => { if (!isFinite(s) || s <= 0) return "—"; s = Math.round(s); const h = Math.floor(s/3600), m = Math.floor(s%3600/60), x = s%60; return (h ? h+"h " : "") + (m ? m+"m " : "") + x + "s"; };
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+
+function render() {
+  const app = document.getElementById("app");
+  if (!token) {
+    app.innerHTML = `<div class="tokenbox card"><h2>Connect</h2><p class="meta">Paste the token printed by <code>godm-cli serve</code> (or run <code>godm-cli ui</code>).</p>
+      <input id="tok" placeholder="token"><div class="actions"><button class="primary" id="tokBtn">Connect</button></div></div>`;
+    document.getElementById("tokBtn").onclick = () => { token = document.getElementById("tok").value.trim(); localStorage.setItem("godm-token", token); refresh(); };
+    return;
+  }
+  const shown = items.filter(d => filter === "all" || d.status === filter || (filter === "active" && (d.status === "downloading" || d.status === "queued")));
+  const speed = items.reduce((a, d) => a + (d.speed || 0), 0);
+  document.getElementById("stats").textContent = `${items.filter(d => d.status === "downloading").length} active · ${fmtBytes(speed)}/s`;
+  const f = (k, l) => `<button data-filter="${k}" class="${filter===k?"on":""}">${l}</button>`;
+  app.innerHTML = `
+    <div class="toolbar">
+      <button class="primary" id="addBtn">+ Add URL</button>
+      <button id="resAll">Resume all</button><button id="pauseAll">Pause all</button>
+      <button id="setBtn">Settings</button>
+      <div class="filters">${f("all","All")}${f("active","Active")}${f("paused","Paused")}${f("completed","Done")}${f("error","Errors")}</div>
+    </div>
+    ${shown.length ? shown.map(card).join("") : `<div class="empty">No downloads here yet.</div>`}`;
+  document.getElementById("addBtn").onclick = () => document.getElementById("addDlg").showModal();
+  document.getElementById("setBtn").onclick = openSettings;
+  document.getElementById("resAll").onclick = () => api("POST", "/api/resume-all").then(refresh);
+  document.getElementById("pauseAll").onclick = () => api("POST", "/api/pause-all").then(refresh);
+  app.querySelectorAll("[data-filter]").forEach(b => b.onclick = () => { filter = b.dataset.filter; render(); });
+  app.querySelectorAll("[data-act]").forEach(b => b.onclick = () => act(b.dataset.id, b.dataset.act));
+}
+
+function card(d) {
+  const pct = d.size > 0 ? Math.min(100, d.downloaded / d.size * 100) : (d.status === "completed" ? 100 : 0);
+  const eta = d.speed > 0 && d.size > 0 ? (d.size - d.downloaded) / d.speed : NaN;
+  let bar;
+  if (d.status === "downloading" && d.size > 0 && d.segments && d.segments.length > 1) {
+    bar = d.segments.map(s => `<i class="seg" style="left:${s.start/d.size*100}%;width:${Math.max(0, Math.min(s.pos, s.end+1) - s.start)/d.size*100}%"></i>`).join("");
+  } else bar = `<i style="left:0;width:${pct}%"></i>`;
+  const btns = [];
+  if (d.status === "downloading" || d.status === "queued") btns.push(`<button data-act="pause" data-id="${d.id}">Pause</button>`);
+  if (d.status === "paused" || d.status === "error") btns.push(`<button data-act="resume" data-id="${d.id}">Resume</button>`);
+  btns.push(`<button class="danger" data-act="remove" data-id="${d.id}">Remove</button>`);
+  const when = d.status === "queued" && d.startAt && !d.startAt.startsWith("0001") ? `<span>starts ${new Date(d.startAt).toLocaleString()}</span>` : "";
+  const retry = d.status === "error" && d.retryAt && !d.retryAt.startsWith("0001") ? `<span>retry ${new Date(d.retryAt).toLocaleTimeString()}</span>` : "";
+  return `<div class="card">
+    <div class="row"><div class="name" title="${esc(d.url)}">${esc(d.fileName || d.url)}</div>
+      <span class="badge s-${d.status}">${d.status}</span>${btns.join("")}</div>
+    <div class="bar">${bar}</div>
+    <div class="meta"><span>${pct.toFixed(1)}%</span><span>${fmtBytes(d.downloaded)} / ${fmtBytes(d.size)}</span>
+      ${d.status === "downloading" ? `<span>${fmtBytes(d.speed)}/s</span><span>ETA ${fmtTime(eta)}</span>` : ""}
+      ${d.size >= 0 ? `<span>${d.resumable ? "resumable" : "no resume"}</span>` : ""}${when}${retry}
+      ${d.path ? `<span title="${esc(d.path)}">${esc(d.path)}</span>` : ""}</div>
+    ${d.error ? `<div class="err">${esc(d.error)}</div>` : ""}
+  </div>`;
+}
+
+async function act(id, a) {
+  try {
+    if (a === "remove") {
+      const d = items.find(x => x.id === id);
+      const del = d && d.status === "completed" ? confirm("Also delete the downloaded file from disk?") : false;
+      await api("DELETE", `/api/downloads/${id}${del ? "?deleteFile=1" : ""}`);
+    } else await api("POST", `/api/downloads/${id}/${a}`);
+  } catch (e) { alert(e.message); }
+  refresh();
+}
+
+document.getElementById("addDlg").addEventListener("close", async () => {
+  const dlg = document.getElementById("addDlg");
+  if (dlg.returnValue !== "ok") return;
+  const fd = new FormData(document.getElementById("addForm"));
+  const urls = fd.get("urls").split(/\s+/).map(s => s.trim()).filter(Boolean);
+  const body = { urls };
+  for (const k of ["fileName","dir","referer","cookie","username","password","checksum"]) if (fd.get(k)) body[k] = fd.get(k);
+  if (fd.get("connections")) body.connections = +fd.get("connections");
+  if (fd.get("speedLimit")) body.speedLimit = +fd.get("speedLimit") * 1024;
+  if (fd.get("startAt")) body.startAt = new Date(fd.get("startAt")).toISOString();
+  if (fd.get("paused")) body.paused = true;
+  try { await api("POST", "/api/downloads", body); document.getElementById("addForm").reset(); } catch (e) { alert(e.message); }
+  refresh();
+});
+
+async function openSettings() {
+  const s = await api("GET", "/api/settings");
+  const f = document.getElementById("setForm");
+  f.downloadDir.value = s.downloadDir; f.maxConcurrent.value = s.maxConcurrent; f.connections.value = s.connections;
+  f.speedLimit.value = Math.round(s.speedLimit / 1024); f.autoRetry.checked = s.autoRetry; f.categorize.checked = s.categorize;
+  document.getElementById("setDlg").showModal();
+}
+document.getElementById("setDlg").addEventListener("close", async () => {
+  if (document.getElementById("setDlg").returnValue !== "ok") return;
+  const f = document.getElementById("setForm");
+  try {
+    await api("PUT", "/api/settings", { downloadDir: f.downloadDir.value, maxConcurrent: +f.maxConcurrent.value, connections: +f.connections.value,
+      speedLimit: +f.speedLimit.value * 1024, autoRetry: f.autoRetry.checked, categorize: f.categorize.checked });
+  } catch (e) { alert(e.message); }
+});
+
+async function refresh() {
+  if (!token) return render();
+  try { items = await api("GET", "/api/downloads"); render(); } catch (e) { if (e.message !== "unauthorized") console.error(e); }
+}
+refresh();
+setInterval(() => { if (!document.querySelector("dialog[open]")) refresh(); }, 1000);
+</script>
+</body>
+</html>

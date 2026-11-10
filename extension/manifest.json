@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArNE2ro/uZM0DQjORDpETAdw2qZe7SCrYDVJRj/Fke/R4mADtqVl/z+Udvk3ZMJU4uYKnCESKfNPKHOv4n8Wa9jJdJEJ7CjWEP+K4X+BDlbOxGRUf0eO4ha1kNrkfA76EaN9weWNQQxp4kf6zDnhUq3/GKkQXDQhV10jskybobbhuMOUJGeoNNHf3NIfXvqUNYEbFFZ+1GNDs3Gu5YA0YOIPEJxp8s+EXJal+YkPWBwKDKoizO+rseA1YKPG6KiuqYnzAtjPV2dMU3J2k7eNA+A8e4c3VWHSUi53bHz7qqR69FUSWZG7hLtmokClyw85lwlTpVPkpDQtOEMYROEHJbQIDAQAB",
+  "name": "GoDM Integration",
+  "version": "1.0.0",
+  "description": "Sends browser downloads to the GoDM download manager.",
+  "permissions": [
+    "downloads",
+    "nativeMessaging",
+    "cookies",
+    "storage",
+    "contextMenus"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "GoDM: click to turn capture on/off"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "godm@godm.local"
+    }
+  }
+}
